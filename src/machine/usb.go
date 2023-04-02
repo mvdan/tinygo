@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"machine/usb"
+	"machine/usb/descriptor"
 )
 
 type USBDevice struct {
@@ -29,7 +30,7 @@ type Serialer interface {
 	RTS() bool
 }
 
-var usbDescriptor = usb.DescriptorCDC
+var usbDescriptor = descriptor.CDC
 
 var usbDescriptorConfig uint8 = usb.DescriptorConfigCDC
 
@@ -88,7 +89,7 @@ var (
 )
 
 var (
-	usbEndpointDescriptors [usb.NumberOfEndpoints]usb.DeviceDescriptor
+	usbEndpointDescriptors [usb.NumberOfEndpoints]descriptor.Device
 
 	isEndpointHalt        = false
 	isRemoteWakeUpEnabled = false
@@ -141,13 +142,13 @@ func sendDescriptor(setup usb.Setup) {
 		// composite descriptor
 		switch {
 		case (usbDescriptorConfig & usb.DescriptorConfigHID) > 0:
-			usbDescriptor = usb.DescriptorCDCHID
+			usbDescriptor = descriptor.CDCHID
 		case (usbDescriptorConfig & usb.DescriptorConfigMIDI) > 0:
-			usbDescriptor = usb.DescriptorCDCMIDI
+			usbDescriptor = descriptor.CDCMIDI
 		case (usbDescriptorConfig & usb.DescriptorConfigJoystick) > 0:
-			usbDescriptor = usb.DescriptorCDCJoystick
+			usbDescriptor = descriptor.CDCJoystick
 		default:
-			usbDescriptor = usb.DescriptorCDC
+			usbDescriptor = descriptor.CDC
 		}
 
 		usbDescriptor.Configure(usbVendorID(), usbProductID())
@@ -302,11 +303,11 @@ func EnableMIDI(txHandler func(), rxHandler func([]byte), setupHandler func(usb.
 
 // EnableJoystick enables HID. This function must be executed from the init().
 func EnableJoystick(txHandler func(), rxHandler func([]byte), setupHandler func(usb.Setup) bool, hidDesc []byte) {
-	idx := bytes.Index(usb.DescriptorCDCJoystick.Configuration, []byte{
+	idx := bytes.Index(descriptor.CDCJoystick.Configuration, []byte{
 		0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x22,
 	})
-	binary.LittleEndian.PutUint16(usb.DescriptorCDCJoystick.Configuration[idx+7:idx+9], uint16(len(hidDesc)))
-	usb.DescriptorCDCJoystick.HID[2] = hidDesc
+	binary.LittleEndian.PutUint16(descriptor.CDCJoystick.Configuration[idx+7:idx+9], uint16(len(hidDesc)))
+	descriptor.CDCJoystick.HID[2] = hidDesc
 	usbDescriptorConfig |= usb.DescriptorConfigJoystick
 	endPoints[usb.HID_ENDPOINT_OUT] = (usb.ENDPOINT_TYPE_INTERRUPT | usb.EndpointOut)
 	usbRxHandler[usb.HID_ENDPOINT_OUT] = rxHandler
